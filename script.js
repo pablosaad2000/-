@@ -1,5 +1,8 @@
 // بيانات الطلبات المؤقتة
-let orders = [];
+let orders = JSON.parse(localStorage.getItem('orders')) || [];
+
+// عرض قائمة الطلبات عند تحميل الصفحة
+renderOrders();
 
 // عند تقديم النموذج لإضافة طلب جديد
 document.getElementById('orderForm').addEventListener('submit', function(event) {
@@ -19,6 +22,9 @@ document.getElementById('orderForm').addEventListener('submit', function(event) 
 
     // إضافة الطلب إلى قائمة الطلبات المؤقتة
     orders.push(formData);
+
+    // حفظ البيانات في localStorage
+    localStorage.setItem('orders', JSON.stringify(orders));
 
     // إعادة تحميل قائمة الطلبات
     renderOrders();
@@ -95,6 +101,9 @@ document.getElementById('saveChangesBtn').addEventListener('click', function() {
     // تحديث الطلب في المصفوفة
     orders[index] = editedOrder;
 
+    // حفظ البيانات المحدثة في localStorage
+    localStorage.setItem('orders', JSON.stringify(orders));
+
     // إعادة تحميل قائمة الطلبات
     renderOrders();
 
@@ -106,6 +115,9 @@ document.getElementById('saveChangesBtn').addEventListener('click', function() {
 function deleteOrder(index) {
     // حذف الطلب من المصفوفة
     orders.splice(index, 1);
+
+    // حفظ التغييرات في localStorage
+    localStorage.setItem('orders', JSON.stringify(orders));
 
     // إعادة تحميل قائمة الطلبات بعد الحذف
     renderOrders();
@@ -161,6 +173,3 @@ function viewOrderDetails(order) {
         تاريخ الطلب: ${order.orderDate}
     `);
 }
-
-// استدعاء دالة عرض قائمة الطلبات عند تحميل الصفحة
-renderOrders();
