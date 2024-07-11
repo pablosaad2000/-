@@ -1,8 +1,28 @@
-// بيانات الطلبات المؤقتة
-let orders = JSON.parse(localStorage.getItem('orders')) || [];
+// افتح قاعدة البيانات أو أنشئها إذا لم تكن موجودة
+let db;
+let request = indexedDB.open('ordersDB', 1);
 
-// عرض قائمة الطلبات عند تحميل الصفحة
-renderOrders();
+request.onerror = function(event) {
+    console.error('حدث خطأ في فتح قاعدة البيانات:', event.target.errorCode);
+};
+
+request.onupgradeneeded = function(event) {
+    // إنشاء قاعدة بيانات جديدة إذا كانت غير موجودة
+    db = event.target.result;
+    let objectStore = db.createObjectStore('orders', { keyPath: 'orderNumber' });
+
+    // تحديد الفهارس للبحث السريع إذا لزم الأمر
+    objectStore.createIndex('customerName', 'customerName', { unique: false });
+    objectStore.createIndex('customerPhone', 'customerPhone', { unique: false });
+};
+
+request.onsuccess = function(event) {
+    // فتح قاعدة البيانات بنجاح
+    db = event.target.result;
+
+    // عرض قائمة الطلبات عند تحميل الصفحة
+    renderOrders();
+};
 
 // عند تقديم النموذج لإضافة طلب جديد
 document.getElementById('orderForm').addEventListener('submit', function(event) {
@@ -20,14 +40,20 @@ document.getElementById('orderForm').addEventListener('submit', function(event) 
         orderDate: document.getElementById('orderDate').value
     };
 
-    // إضافة الطلب إلى قائمة الطلبات المؤقتة
-    orders.push(formData);
+    // احفظ الطلب في قاعدة البيانات
+    let transaction = db.transaction(['orders'], 'readwrite');
+    let objectStore = transaction.objectStore('orders');
+    let request = objectStore.add(formData);
 
-    // حفظ البيانات في localStorage
-    localStorage.setItem('orders', JSON.stringify(orders));
+    request.onsuccess = function(event) {
+        console.log('تمت إضافة الطلب بنجاح.');
+        // إعادة تحميل قائمة الطلبات
+        renderOrders();
+    };
 
-    // إعادة تحميل قائمة الطلبات
-    renderOrders();
+    request.onerror = function(event) {
+        console.error('حدث خطأ أثناء إضافة الطلب:', event.target.error);
+    };
 
     // مسح الحقول بعد إضافة الطلب
     document.getElementById('orderForm').reset();
@@ -38,55 +64,82 @@ function renderOrders() {
     let orderList = document.getElementById('orderList');
     orderList.innerHTML = ''; // مسح العناصر القديمة
 
-    orders.forEach(function(order, index) {
-        // إنشاء عنصر li لكل طلب
-        let li = document.createElement('li');
-        li.innerHTML = `
-            <p><strong>اسم العميل:</strong> ${order.customerName}</p>
-            <p><strong>رقم الطلب:</strong> ${order.orderNumber}</p>
-            <p><strong>سعر الطلب:</strong> ${order.orderPrice}</p>
-            <p><strong>نوع الطلب:</strong> ${order.orderType}</p>
-            <p><strong>شركة الشحن:</strong> ${order.shippingCompany}</p>
-            <p><strong>عنوان الطلب:</strong> ${order.orderAddress}</p>
-            <p><strong>رقم هاتف العميل:</strong> ${order.customerPhone}</p>
-            <p><strong>تاريخ الطلب:</strong> ${order.orderDate}</p>
-            <button onclick="editOrder(${index})">تعديل</button>
-            <button onclick="deleteOrder(${index})">حذف</button>
-        `;
-        // إضافة إستماع للنقر لعرض الطلب بالكامل
-        li.addEventListener('click', function() {
-            viewOrderDetails(order);
-        });
-        orderList.appendChild(li);
-    });
+    let transaction = db.transaction(['orders'], 'readonly');
+    let objectStore = transaction.objectStore('orders');
+    let request = objectStore.openCursor();
+
+    request.onsuccess = function(event) {
+        let cursor = event.target.result;
+        if (cursor) {
+            // إنشاء عنصر li لكل طلب
+            let li = document.createElement('li');
+            let order = cursor.value;
+            li.innerHTML = `
+                <p><strong>اسم العميل:</strong> ${order.customerName}</p>
+                <p><strong>رقم الطلب:</strong> ${order.orderNumber}</p>
+                <p><strong>سعر الطلب:</strong> ${order.orderPrice}</p>
+                <p><strong>نوع الطلب:</strong> ${order.orderType}</p>
+                <p><strong>شركة الشحن:</strong> ${order.shippingCompany}</p>
+                <p><strong>عنوان الطلب:</strong> ${order.orderAddress}</p>
+                <p><strong>رقم هاتف العميل:</strong> ${order.customerPhone}</p>
+                <p><strong>تاريخ الطلب:</strong> ${order.orderDate}</p>
+                <button onclick="editOrder(${order.orderNumber})">تعديل</button>
+                <button onclick="deleteOrder(${order.orderNumber})">حذف</button>
+            `;
+            // إضافة إستماع للنقر لعرض الطلب بالكامل
+            li.addEventListener('click', function() {
+                viewOrderDetails(order);
+            });
+            orderList.appendChild(li);
+            
+            cursor.continue();
+        } else {
+            console.log('تمت عرض جميع الطلبات.');
+        }
+    };
+
+    request.onerror = function(event) {
+        console.error('حدث خطأ أثناء عرض الطلبات:', event.target.error);
+    };
 }
 
 // تعديل الطلب
-function editOrder(index) {
-    // يمكنك هنا تنفيذ الكود اللازم لتعديل الطلب
-    // مثال: يمكنك فتح نافذة تعديل أو استخدام نموذج للتعديل
-    let order = orders[index]; // الطلب المحدد للتعديل
+function editOrder(orderNumber) {
+    // ابحث عن الطلب المحدد
+    let transaction = db.transaction(['orders'], 'readwrite');
+    let objectStore = transaction.objectStore('orders');
+    let request = objectStore.get(orderNumber);
 
-    // ملء الحقول في نموذج التعديل بالبيانات الحالية للطلب
-    document.getElementById('editCustomerName').value = order.customerName;
-    document.getElementById('editOrderNumber').value = order.orderNumber;
-    document.getElementById('editOrderPrice').value = order.orderPrice;
-    document.getElementById('editOrderType').value = order.orderType;
-    document.getElementById('editShippingCompany').value = order.shippingCompany;
-    document.getElementById('editOrderAddress').value = order.orderAddress;
-    document.getElementById('editCustomerPhone').value = order.customerPhone;
-    document.getElementById('editOrderDate').value = order.orderDate;
+    request.onsuccess = function(event) {
+        let order = event.target.result;
 
-    // إظهار نافذة التعديل
-    editModal.style.display = 'block';
+        // ملء الحقول في نموذج التعديل بالبيانات الحالية للطلب
+        document.getElementById('editCustomerName').value = order.customerName;
+        document.getElementById('editOrderNumber').value = order.orderNumber;
+        document.getElementById('editOrderPrice').value = order.orderPrice;
+        document.getElementById('editOrderType').value = order.orderType;
+        document.getElementById('editShippingCompany').value = order.shippingCompany;
+        document.getElementById('editOrderAddress').value = order.orderAddress;
+        document.getElementById('editCustomerPhone').value = order.customerPhone;
+        document.getElementById('editOrderDate').value = order.orderDate;
 
-    // الحفاظ على معرف الطلب لاستخدامه عند الحفظ
-    document.getElementById('saveChangesBtn').dataset.index = index;
+        // إظهار نافذة التعديل
+        editModal.style.display = 'block';
+
+        // الحفاظ على رقم الطلب لاستخدامه عند الحفظ
+        document.getElementById('saveChangesBtn').dataset.orderNumber = order.orderNumber;
+    };
+
+    request.onerror = function(event) {
+        console.error('حدث خطأ أثناء جلب الطلب للتعديل:', event.target.error);
+    };
 }
 
 // حفظ التغييرات عند النقر على زر "حفظ التغييرات"
 document.getElementById('saveChangesBtn').addEventListener('click', function() {
-    let index = this.dataset.index; // الحصول على معرف الطلب
+    let orderNumber = this.dataset.orderNumber; // الحصول على رقم الطلب
+
+    // جمع البيانات المعدلة من نموذج التعديل
     let editedOrder = {
         customerName: document.getElementById('editCustomerName').value,
         orderNumber: document.getElementById('editOrderNumber').value,
@@ -98,44 +151,76 @@ document.getElementById('saveChangesBtn').addEventListener('click', function() {
         orderDate: document.getElementById('editOrderDate').value
     };
 
-    // تحديث الطلب في المصفوفة
-    orders[index] = editedOrder;
+    // تحديث الطلب في قاعدة البيانات
+    let transaction = db.transaction(['orders'], 'readwrite');
+    let objectStore = transaction.objectStore('orders');
+    let request = objectStore.put(editedOrder);
 
-    // حفظ البيانات المحدثة في localStorage
-    localStorage.setItem('orders', JSON.stringify(orders));
+    request.onsuccess = function(event) {
+        console.log('تم تحديث الطلب بنجاح.');
+        // إعادة تحميل قائمة الطلبات
+        renderOrders();
+    };
 
-    // إعادة تحميل قائمة الطلبات
-    renderOrders();
+    request.onerror = function(event) {
+        console.error('حدث خطأ أثناء تحديث الطلب:', event.target.error);
+    };
 
     // إغلاق نافذة التعديل
     editModal.style.display = 'none';
 });
 
 // حذف الطلب
-function deleteOrder(index) {
-    // حذف الطلب من المصفوفة
-    orders.splice(index, 1);
+function deleteOrder(orderNumber) {
+    // حذف الطلب من قاعدة البيانات
+    let transaction = db.transaction(['orders'], 'readwrite');
+    let objectStore = transaction.objectStore('orders');
+    let request = objectStore.delete(orderNumber);
 
-    // حفظ التغييرات في localStorage
-    localStorage.setItem('orders', JSON.stringify(orders));
+    request.onsuccess = function(event) {
+        console.log('تم حذف الطلب بنجاح.');
+        // إعادة تحميل قائمة الطلبات بعد الحذف
+        renderOrders();
+    };
 
-    // إعادة تحميل قائمة الطلبات بعد الحذف
-    renderOrders();
+    request.onerror = function(event) {
+        console.error('حدث خطأ أثناء حذف الطلب:', event.target.error);
+    };
 }
 
 // البحث عن الطلبات
 document.getElementById('searchInput').addEventListener('input', function() {
     let searchTerm = this.value.toLowerCase().trim();
-    let filteredOrders = orders.filter(function(order) {
-        return (
-            order.customerName.toLowerCase().includes(searchTerm) ||
-            order.orderNumber.toString().includes(searchTerm) ||
-            order.customerPhone.includes(searchTerm)
-        );
-    });
 
-    // عرض النتائج المصفاة
-    displaySearchResults(filteredOrders);
+    let transaction = db.transaction(['orders'], 'readonly');
+    let objectStore = transaction.objectStore('orders');
+    let index = objectStore.index('customerName');
+
+    let request = index.openCursor();
+
+    request.onsuccess = function(event) {
+        let cursor = event.target.result;
+        let filteredOrders = [];
+
+        if (cursor) {
+            let order = cursor.value;
+            if (
+                order.customerName.toLowerCase().includes(searchTerm) ||
+                order.orderNumber.toString().includes(searchTerm) ||
+                order.customerPhone.includes(searchTerm)
+            ) {
+                filteredOrders.push(order);
+            }
+            cursor.continue();
+        } else {
+            // عرض النتائج المصفاة
+            displaySearchResults(filteredOrders);
+        }
+    };
+
+    request.onerror = function(event) {
+        console.error('حدث خطأ أثناء البحث عن الطلبات:', event.target.error);
+    };
 });
 
 // عرض نتائج البحث
