@@ -1,10 +1,27 @@
-// JavaScript (script.js)
+// Import the functions you need from the SDKs you need
+import { initializeApp } from "firebase/app";
+import { getFirestore, collection, addDoc, getDocs, doc, updateDoc, deleteDoc } from "firebase/firestore"; 
+
+// Your web app's Firebase configuration
+const firebaseConfig = {
+  apiKey: "YOUR_API_KEY",
+  authDomain: "YOUR_PROJECT_ID.firebaseapp.com",
+  projectId: "YOUR_PROJECT_ID",
+  storageBucket: "YOUR_PROJECT_ID.appspot.com",
+  messagingSenderId: "YOUR_MESSAGING_SENDER_ID",
+  appId: "YOUR_APP_ID",
+  measurementId: "YOUR_MEASUREMENT_ID"
+};
+
+// Initialize Firebase
+const app = initializeApp(firebaseConfig);
+const db = getFirestore(app);
 
 // بيانات الطلبات المؤقتة (يمكن استبدالها بقاعدة بيانات حقيقية)
 let orders = [];
 
 // عند تقديم النموذج لإضافة طلب جديد
-document.getElementById('orderForm').addEventListener('submit', function(event) {
+document.getElementById('orderForm').addEventListener('submit', async function(event) {
     event.preventDefault(); // منع إعادة تحميل الصفحة
 
     // جمع بيانات النموذج
@@ -19,14 +36,22 @@ document.getElementById('orderForm').addEventListener('submit', function(event) 
         orderDate: document.getElementById('orderDate').value
     };
 
-    // إضافة الطلب إلى قائمة الطلبات
-    orders.push(formData);
+    try {
+        // إضافة الطلب إلى قاعدة البيانات
+        const docRef = await addDoc(collection(db, "orders"), formData);
+        console.log("Document written with ID: ", docRef.id);
+        
+        // إضافة الطلب إلى قائمة الطلبات المؤقتة
+        orders.push(formData);
 
-    // إعادة تحميل قائمة الطلبات
-    renderOrders();
+        // إعادة تحميل قائمة الطلبات
+        renderOrders();
 
-    // مسح الحقول بعد إضافة الطلب
-    document.getElementById('orderForm').reset();
+        // مسح الحقول بعد إضافة الطلب
+        document.getElementById('orderForm').reset();
+    } catch (e) {
+        console.error("Error adding document: ", e);
+    }
 });
 
 // عرض قائمة الطلبات
@@ -94,21 +119,39 @@ document.getElementById('saveChangesBtn').addEventListener('click', function() {
         orderDate: document.getElementById('editOrderDate').value
     };
 
-    // تحديث الطلب في المصفوفة
-    orders[index] = editedOrder;
+    try {
+        // تحديث الطلب في قاعدة البيانات
+        const orderRef = doc(db, "orders", index);
+        await updateDoc(orderRef, editedOrder);
 
-    // إعادة تحميل قائمة الطلبات
-    renderOrders();
+        // تحديث الطلب في المصفوفة
+        orders[index] = editedOrder;
 
-    // إغلاق نافذة التعديل
-    editModal.style.display = 'none';
+        // إعادة تحميل قائمة الطلبات
+        renderOrders();
+
+        // إغلاق نافذة التعديل
+        editModal.style.display = 'none';
+    } catch (e) {
+        console.error("Error updating document: ", e);
+    }
 });
 
 // حذف الطلب
-function deleteOrder(index) {
-    // يمكنك هنا تنفيذ الكود اللازم لحذف الطلب من القائمة
-    orders.splice(index, 1); // حذف الطلب من المصفوفة
-    renderOrders(); // إعادة تحميل قائمة الطلبات بعد الحذف
+async function deleteOrder(index) {
+    try {
+        // حذف الطلب من قاعدة البيانات
+        const orderRef = doc(db, "orders", index);
+        await deleteDoc(orderRef);
+
+        // حذف الطلب من المصفوفة
+        orders.splice(index, 1);
+
+        // إعادة تحميل قائمة الطلبات بعد الحذف
+        renderOrders();
+    } catch (e) {
+        console.error("Error deleting document: ", e);
+    }
 }
 
 // البحث عن الطلبات
