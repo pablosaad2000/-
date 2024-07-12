@@ -25,6 +25,7 @@ document.getElementById('orderForm').addEventListener('submit', function(event) 
         customerName: document.getElementById('customerName').value,
         orderNumber: parseInt(document.getElementById('orderNumber').value),
         orderPrice: parseFloat(document.getElementById('orderPrice').value),
+        discountedPrice: parseFloat(document.getElementById('discountedPrice').value),
         orderType: document.getElementById('orderType').value,
         shippingCompany: document.getElementById('shippingCompany').value,
         orderAddress: document.getElementById('orderAddress').value,
@@ -60,17 +61,17 @@ function renderOrders() {
         orders.forEach(function(order) {
             let listItem = document.createElement('li');
 
-            let orderInfo = `
+            listItem.innerHTML = `
                 <div><strong>اسم العميل:</strong> ${order.customerName}</div>
                 <div><strong>رقم الطلب:</strong> ${order.orderNumber}</div>
                 <div><strong>سعر الطلب:</strong> ${order.orderPrice}</div>
+                <div><strong>سعر بعد الخصم:</strong> ${order.discountedPrice}</div>
                 <div><strong>نوع الطلب:</strong> ${order.orderType}</div>
                 <div><strong>شركة الشحن:</strong> ${order.shippingCompany}</div>
                 <div><strong>عنوان الطلب:</strong> ${order.orderAddress}</div>
                 <div><strong>هاتف العميل:</strong> ${order.customerPhone}</div>
                 <div><strong>تاريخ الطلب:</strong> ${order.orderDate}</div>
             `;
-            listItem.innerHTML = orderInfo;
 
             let editButton = document.createElement('button');
             editButton.textContent = 'تعديل';
@@ -128,7 +129,7 @@ document.getElementById('searchInput').addEventListener('input', function(event)
                 order.customerPhone.includes(query)
             ) {
                 let listItem = document.createElement('li');
-                listItem.textContent = `اسم العميل: ${order.customerName}, رقم الطلب: ${order.orderNumber}, هاتف العميل: ${order.customerPhone}`;
+                listItem.innerHTML = `اسم العميل: ${order.customerName}, رقم الطلب: ${order.orderNumber}, هاتف العميل: ${order.customerPhone}`;
                 listItem.addEventListener('click', function() {
                     openViewModal(order);
                 });
@@ -151,6 +152,7 @@ function openViewModal(order) {
         <div><strong>اسم العميل:</strong> ${order.customerName}</div>
         <div><strong>رقم الطلب:</strong> ${order.orderNumber}</div>
         <div><strong>سعر الطلب:</strong> ${order.orderPrice}</div>
+        <div><strong>سعر بعد الخصم:</strong> ${order.discountedPrice}</div>
         <div><strong>نوع الطلب:</strong> ${order.orderType}</div>
         <div><strong>شركة الشحن:</strong> ${order.shippingCompany}</div>
         <div><strong>عنوان الطلب:</strong> ${order.orderAddress}</div>
@@ -177,6 +179,7 @@ function openEditModal(order) {
     form.editCustomerName.value = order.customerName;
     form.editOrderNumber.value = order.orderNumber;
     form.editOrderPrice.value = order.orderPrice;
+    form.editDiscountedPrice.value = order.discountedPrice;
     form.editOrderType.value = order.orderType;
     form.editShippingCompany.value = order.shippingCompany;
     form.editOrderAddress.value = order.orderAddress;
@@ -188,6 +191,7 @@ function openEditModal(order) {
             customerName: form.editCustomerName.value,
             orderNumber: parseInt(form.editOrderNumber.value),
             orderPrice: parseFloat(form.editOrderPrice.value),
+            discountedPrice: parseFloat(form.editDiscountedPrice.value),
             orderType: form.editOrderType.value,
             shippingCompany: form.editShippingCompany.value,
             orderAddress: form.editOrderAddress.value,
