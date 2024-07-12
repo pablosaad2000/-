@@ -48,7 +48,7 @@
         </section>
         <section>
             <h2>قائمة الطلبات</h2>
-            <ul id="orderList"></ul>
+            <ul id="orderList" class="order-list"></ul>
         </section>
     </main>
 
@@ -84,6 +84,15 @@
                 
                 <button type="button" id="saveChangesBtn">حفظ التغييرات</button>
             </form>
+        </div>
+    </div>
+
+    <!-- Modal لنافذة عرض الطلب -->
+    <div id="viewModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>تفاصيل الطلب</h2>
+            <div id="orderDetails"></div>
         </div>
     </div>
 
